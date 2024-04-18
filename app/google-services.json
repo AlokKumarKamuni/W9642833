@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "73795706273",
+    "project_id": "comfystay-6da03",
+    "storage_bucket": "comfystay-6da03.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:73795706273:android:458e319949e2af97a17fe0",
+        "android_client_info": {
+          "package_name": "uk.ac.tees.mad.w9642833"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCe_U8FgTxCrQDF64mH_NTGcSEFIkW08eM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
