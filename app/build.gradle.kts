@@ -1,9 +1,6 @@
 plugins {
-    alias(libs.plugins.androidApplication)
-    alias(libs.plugins.jetbrainsKotlinAndroid)
-    id("com.google.gms.google-services")
-    kotlin("kapt")
-    id("com.google.dagger.hilt.android")
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.jetbrains.kotlin.android)
 }
 
 android {
@@ -12,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "uk.ac.tees.mad.w9642833"
-        minSdk = 28
+        minSdk = 29
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -33,11 +30,11 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
     kotlinOptions {
-        jvmTarget = "17"
+        jvmTarget = "1.8"
     }
     buildFeatures {
         compose = true
@@ -54,8 +51,6 @@ android {
 
 dependencies {
 
-    val nav_version = "2.7.7"
-
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -71,31 +66,8 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+    implementation (libs.androidx.navigation)
+    implementation (libs.androidx.material)
 
-    // Lottie Animation Dependency
-    implementation ("com.airbnb.android:lottie-compose:6.3.0")
-    // Icon Dependency
-    implementation("androidx.compose.material:material-icons-extended:1.6.0")
 
-    // Firebase Dependencies:
-
-    // Firebase BOM
-    implementation(platform("com.google.firebase:firebase-bom:32.8.0"))
-    // When using the BoM, don't specify versions in Firebase dependencies
-    implementation("com.google.firebase:firebase-analytics")
-    implementation("com.google.firebase:firebase-auth")
-
-    // Navigation:
-
-    implementation("androidx.navigation:navigation-compose:$nav_version")
-    implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
-
-    // Dagger Hilt Dependency:
-
-    implementation("com.google.dagger:hilt-android:2.51")
-    kapt("com.google.dagger:hilt-android-compiler:2.51")
-}
-
-kapt {
-    correctErrorTypes=true
 }
