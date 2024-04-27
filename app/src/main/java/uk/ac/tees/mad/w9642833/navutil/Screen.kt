@@ -7,6 +7,7 @@ sealed class Screen(val route:String) {
     data object LoginScreen : Screen("login_screen")
     data object RegisterScreen : Screen("register_screen")
     data object BookMarksScreen : Screen("bookmarks_screen")
+    data object SplashScreen : Screen("splash_screen")
 
 
     fun withArgs(vararg args:String) :String {

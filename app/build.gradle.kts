@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
+    alias(libs.plugins.google.gms.google.services)
+
 }
 
 android {
@@ -68,6 +70,19 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation (libs.androidx.navigation)
     implementation (libs.androidx.material)
+    implementation (libs.retrofit)
+    implementation (libs.converter.gson)
+    implementation(libs.coil.compose)
+    implementation(platform(libs.firebase.bom))
+    implementation (libs.firebase.auth)
+    implementation (libs.firebase.firestore)
+    implementation(libs.firebase.storage)
+    implementation (libs.play.services.maps)
+    implementation (libs.play.services.location)
+    implementation (libs.maps.ktx)
+    implementation (libs.maps.compose)
+
+
 
 
 }

@@ -7,4 +7,5 @@ import androidx.navigation.NavController
 @Composable
 @Preview
 fun BookmarkScreen(navController: NavController? = null) {
+
 }

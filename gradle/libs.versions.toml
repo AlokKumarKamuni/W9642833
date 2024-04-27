@@ -6,10 +6,21 @@ junit = "4.13.2"
 junitVersion = "1.1.5"
 espressoCore = "3.5.1"
 lifecycleRuntimeKtx = "2.7.0"
-activityCompose = "1.8.2"
-composeBom = "2023.08.00"
+activityCompose = "1.9.0"
+composeBom = "2024.04.01"
 navigation = "2.7.7"
 material = "1.6.6"
+converterGson = "2.9.0"
+retrofit = "2.9.0"
+coilCompose = "2.6.0"
+firebaseBomVersion = "32.8.1"
+playServicesLocation = "21.2.0"
+playServicesMaps = "18.2.0"
+mapsCompose = "4.3.3"
+mapsKtx = "5.0.0"
+googleGmsGoogleServices = "4.4.1"
+
+
 
 
 
@@ -30,9 +41,24 @@ androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-material = { module = "androidx.compose.material:material", version.ref = "material" }
 androidx-navigation = {group = "androidx.navigation", name = "navigation-compose", version.ref = "navigation"}
+retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }
+converter-gson = { module = "com.squareup.retrofit2:converter-gson", version.ref = "converterGson" }
+coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coilCompose" }
+firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
+firebase-storage = {module = "com.google.firebase:firebase-storage"}
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBomVersion" }
+firebase-firestore = { module = "com.google.firebase:firebase-firestore" }
+
+maps-compose = { module = "com.google.maps.android:maps-compose", version.ref = "mapsCompose" }
+maps-ktx = { module = "com.google.maps.android:maps-ktx", version.ref = "mapsKtx" }
+play-services-location = { module = "com.google.android.gms:play-services-location", version.ref = "playServicesLocation" }
+play-services-maps = { module = "com.google.android.gms:play-services-maps", version.ref = "playServicesMaps" }
+
 
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 jetbrains-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+google-gms-google-services = { id = "com.google.gms.google-services", version.ref = "googleGmsGoogleServices" }
+
 
