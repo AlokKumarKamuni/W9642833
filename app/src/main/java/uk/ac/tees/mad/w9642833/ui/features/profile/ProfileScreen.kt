@@ -57,6 +57,7 @@ import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.rememberCameraPositionState
+import uk.ac.tees.mad.w9642833.BuildConfig
 import uk.ac.tees.mad.w9642833.R
 import uk.ac.tees.mad.w9642833.navutil.Screen
 import uk.ac.tees.mad.w9642833.navutil.UtilFunctions
@@ -81,6 +82,10 @@ fun ProfileScreen(navController: NavHostController) {
 
     var userName by remember {
         mutableStateOf("")
+    }
+
+    var profileImageChanged by remember {
+        mutableStateOf(false)
     }
 
     var profileImageUri by remember {
@@ -150,7 +155,7 @@ fun ProfileScreen(navController: NavHostController) {
     val file = context.createImageFile()
     val uri = FileProvider.getUriForFile(
         Objects.requireNonNull(context),
-        "uk.ac.tees.mad.w9642833" + ".provider", file
+        BuildConfig.APPLICATION_ID + ".provider", file
     )
 
 
@@ -168,11 +173,13 @@ fun ProfileScreen(navController: NavHostController) {
     val cameraLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) {
             profileImageUri = uri?.toString()
+            profileImageChanged = true
         }
 
     val galleryLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri1 ->
             profileImageUri = uri1?.toString()
+            profileImageChanged = true
         }
 
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
@@ -201,11 +208,10 @@ fun ProfileScreen(navController: NavHostController) {
 
     } else {
 
-
         if (isEditable) {
 
             if (shouldShowMap) {
-                MapScreen(
+                MapScreen(selectedLatLng,
                     onMapClicked = { latLng ->
                         shouldShowMap = false
                         selectedLatLng = latLng
@@ -331,70 +337,108 @@ fun ProfileScreen(navController: NavHostController) {
                         onClick = {
 
                             showLoader = true
-                            firebaseStorage.reference
-                                .child(firebaseAuth.currentUser?.uid ?: "")
-                                .putFile(Uri.parse(profileImageUri))
-                                .addOnCompleteListener { imageTask ->
-                                    if (imageTask.isSuccessful) {
-                                        firebaseStorage.reference.child(
-                                            firebaseAuth.currentUser?.uid ?: ""
-                                        )
-                                            .downloadUrl.addOnCompleteListener { downTask ->
-                                                if (downTask.isSuccessful) {
 
-                                                    val use = User(
-                                                        userName,
-                                                        downTask.result.toString(),
-                                                        selectedLatLng.latitude,
-                                                        selectedLatLng.longitude
-                                                    )
-                                                    firebaseFireStore.collection("users")
-                                                        .document(
-                                                            firebaseAuth.currentUser?.uid
-                                                                ?: ""
+                            if (profileImageChanged) {
+                                firebaseStorage.reference
+                                    .child(firebaseAuth.currentUser?.uid ?: "")
+                                    .putFile(Uri.parse(profileImageUri))
+                                    .addOnCompleteListener { imageTask ->
+                                        if (imageTask.isSuccessful) {
+                                            firebaseStorage.reference.child(
+                                                firebaseAuth.currentUser?.uid ?: ""
+                                            )
+                                                .downloadUrl.addOnCompleteListener { downTask ->
+                                                    if (downTask.isSuccessful) {
+
+                                                        val use = User(
+                                                            userName,
+                                                            downTask.result.toString(),
+                                                            selectedLatLng.latitude,
+                                                            selectedLatLng.longitude
                                                         )
-                                                        .set(use)
-                                                        .addOnCompleteListener { finalTask ->
-                                                            showLoader = false
+                                                        firebaseFireStore.collection("users")
+                                                            .document(
+                                                                firebaseAuth.currentUser?.uid
+                                                                    ?: ""
+                                                            )
+                                                            .set(use)
+                                                            .addOnCompleteListener { finalTask ->
+                                                                showLoader = false
 
-                                                            if (finalTask.isSuccessful) {
-                                                                navController.navigate(
-                                                                    Screen.HomeScreen.route
-                                                                ) {
-                                                                    popUpTo(Screen.LoginScreen.route) {
-                                                                        inclusive = true
+                                                                if (finalTask.isSuccessful) {
+                                                                    navController.navigate(
+                                                                        Screen.HomeScreen.route
+                                                                    ) {
+                                                                        popUpTo(Screen.LoginScreen.route) {
+                                                                            inclusive = true
+                                                                        }
                                                                     }
+                                                                    Toast.makeText(
+                                                                        context,
+                                                                        "Success",
+                                                                        Toast.LENGTH_SHORT
+                                                                    ).show()
+                                                                } else {
+
+                                                                    firebaseAuth.signOut()
+                                                                    Toast.makeText(
+                                                                        context,
+                                                                        "Failed, Try again  here ${finalTask.exception?.message}",
+                                                                        Toast.LENGTH_SHORT
+                                                                    ).show()
                                                                 }
-                                                                Toast.makeText(
-                                                                    context,
-                                                                    "Success",
-                                                                    Toast.LENGTH_SHORT
-                                                                ).show()
-                                                            } else {
 
-                                                                firebaseAuth.signOut()
-                                                                Toast.makeText(
-                                                                    context,
-                                                                    "Failed, Try again  here ${finalTask.exception?.message}",
-                                                                    Toast.LENGTH_SHORT
-                                                                ).show()
                                                             }
-
-                                                        }
+                                                    }
                                                 }
-                                            }
-                                    } else {
-                                        showLoader = false
+                                        } else {
+                                            showLoader = false
 
-                                        firebaseAuth.signOut()
-                                        Toast.makeText(
-                                            context,
-                                            "Failed, Try again",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
+                                            firebaseAuth.signOut()
+                                            Toast.makeText(
+                                                context,
+                                                "Failed, Try again",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+
                                     }
 
-                                }
+                            } else {
+                                val use = User(
+                                    userName,
+                                    profileImageUri,
+                                    selectedLatLng.latitude,
+                                    selectedLatLng.longitude
+                                )
+                                firebaseFireStore.collection("users")
+                                    .document(firebaseAuth.currentUser?.uid ?: "")
+                                    .set(use)
+                                    .addOnCompleteListener { finalTask ->
+                                        showLoader = false
+
+                                        if (finalTask.isSuccessful) {
+                                            navController.navigate(
+                                                Screen.HomeScreen.route
+                                            ) {
+                                                popUpTo(Screen.LoginScreen.route) {
+                                                    inclusive = true
+                                                }
+                                            }
+                                            Toast.makeText(context, "Success", Toast.LENGTH_SHORT)
+                                                .show()
+                                        } else {
+
+                                            firebaseAuth.signOut()
+                                            Toast.makeText(
+                                                context,
+                                                "Failed, Try again  here ${finalTask.exception?.message}",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+
+                                    }
+                            }
 
                         }) {
                         Text(text = "Save")
@@ -492,10 +536,10 @@ fun ProfileScreen(navController: NavHostController) {
 }
 
 @Composable
-fun MapScreen(onMapClicked: (latLng: LatLng) -> Unit) {
+fun MapScreen(selectedLatLng:LatLng,onMapClicked: (latLng: LatLng) -> Unit) {
 
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(LatLng(0.0, 0.0), 15f)
+        position = CameraPosition.fromLatLngZoom(selectedLatLng, 15f)
     }
 
     Box(

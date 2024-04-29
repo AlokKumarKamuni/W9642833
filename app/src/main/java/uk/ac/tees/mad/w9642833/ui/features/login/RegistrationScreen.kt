@@ -1,6 +1,8 @@
 package uk.ac.tees.mad.w9642833.ui.features.login
 
+import android.content.Context
 import android.content.pm.PackageManager
+import android.location.Location
 import android.net.Uri
 import android.util.Patterns
 import android.widget.Toast
@@ -18,7 +20,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.Button
@@ -32,36 +33,38 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.FirebaseStorage
+import uk.ac.tees.mad.w9642833.BuildConfig
 import uk.ac.tees.mad.w9642833.R
 import uk.ac.tees.mad.w9642833.navutil.Screen
 import uk.ac.tees.mad.w9642833.navutil.UtilFunctions
 import uk.ac.tees.mad.w9642833.ui.features.profile.MapScreen
 import uk.ac.tees.mad.w9642833.ui.features.profile.User
-import uk.ac.tees.mad.w9642833.ui.features.profile.createImageFile
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Objects
-import kotlin.math.tan
+import java.util.UUID
 
 @Composable
 fun RegistrationScreen(navController: NavController) {
@@ -80,8 +83,8 @@ fun RegistrationScreen(navController: NavController) {
         mutableStateOf("")
     }
 
-    var profileImageUri by remember {
-        mutableStateOf<String?>(null)
+    var capturedImageUri by remember {
+        mutableStateOf<Uri>(Uri.EMPTY)
     }
 
     var displayableAddress by remember {
@@ -92,7 +95,7 @@ fun RegistrationScreen(navController: NavController) {
         mutableStateOf(false)
     }
 
-    var firebaseStorage by remember {
+    val firebaseStorage by remember {
         mutableStateOf(FirebaseStorage.getInstance())
     }
 
@@ -100,13 +103,18 @@ fun RegistrationScreen(navController: NavController) {
         mutableStateOf(LatLng(0.0, 0.0))
     }
 
-    var user by remember {
-        mutableStateOf<User?>(null)
-    }
-
     var passwordVisible by remember {
         mutableStateOf(false)
     }
+
+    var file by remember {
+        mutableStateOf<File?>(null)
+    }
+
+    var uri by remember {
+        mutableStateOf<Uri?>(null)
+    }
+
 
 
     val firebaseAuth by remember {
@@ -117,6 +125,53 @@ fun RegistrationScreen(navController: NavController) {
         mutableStateOf(Firebase.firestore)
     }
 
+    var fusedLocationClient by remember {
+        mutableStateOf<FusedLocationProviderClient?>(null)
+    }
+
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) {
+        if (it) {
+            fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+            fusedLocationClient?.lastLocation?.addOnSuccessListener { location: Location? ->
+                selectedLatLng = LatLng(location?.latitude ?: 0.0, location?.longitude ?: 0.0)
+            }
+            Toast.makeText(context, "Permission Granted", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(context, "Permission Denied", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+
+
+    LaunchedEffect(Unit) {
+
+
+
+        file = context.createImageFile()
+        uri = FileProvider.getUriForFile(
+            Objects.requireNonNull(context),
+            BuildConfig.APPLICATION_ID + ".provider", file!!
+        )
+
+        val permissionCheckResult =
+            ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.ACCESS_FINE_LOCATION
+            )
+        if (permissionCheckResult == PackageManager.PERMISSION_GRANTED) {
+            fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+            fusedLocationClient?.lastLocation?.addOnSuccessListener { location: Location? ->
+                selectedLatLng = LatLng(location?.latitude ?: 0.0, location?.longitude ?: 0.0)
+            }
+        } else {
+            locationPermissionLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+
+    }
+
     LaunchedEffect(selectedLatLng) {
         displayableAddress = UtilFunctions.getMarkerAddressDetails(
             selectedLatLng.latitude, selectedLatLng.longitude,
@@ -125,23 +180,7 @@ fun RegistrationScreen(navController: NavController) {
     }
 
 
-    val file = context.createImageFile()
-    val uri = FileProvider.getUriForFile(
-        Objects.requireNonNull(context),
-        "uk.ac.tees.mad.w9642833" + ".provider", file
-    )
 
-
-    val locationPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) {
-        if (it) {
-            shouldShowMap = true
-            Toast.makeText(context, "Permission Granted", Toast.LENGTH_SHORT).show()
-        } else {
-            Toast.makeText(context, "Permission Denied", Toast.LENGTH_SHORT).show()
-        }
-    }
 
     var showLoader by remember {
         mutableStateOf(false)
@@ -149,18 +188,19 @@ fun RegistrationScreen(navController: NavController) {
 
     val cameraLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) {
-            profileImageUri = uri?.toString()
+            capturedImageUri = uri!!
         }
 
     val galleryLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri1 ->
-            profileImageUri = uri1?.toString()
+            capturedImageUri = uri1?:Uri.EMPTY
         }
 
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) {
         if (it) {
+            cameraLauncher.launch(uri!!)
             Toast.makeText(context, "Permission Granted", Toast.LENGTH_SHORT).show()
         } else {
             Toast.makeText(context, "Permission Denied", Toast.LENGTH_SHORT).show()
@@ -185,6 +225,7 @@ fun RegistrationScreen(navController: NavController) {
 
         if (shouldShowMap) {
             MapScreen(
+                selectedLatLng,
                 onMapClicked = { latLng ->
                     shouldShowMap = false
                     selectedLatLng = latLng
@@ -205,8 +246,8 @@ fun RegistrationScreen(navController: NavController) {
                             .height(200.dp)
                             .width(200.dp)
                             .clip(CircleShape),
-                        painter = if (profileImageUri != null)
-                            rememberAsyncImagePainter(profileImageUri)
+                        painter = if (capturedImageUri.path?.isNotEmpty() == true)
+                            rememberAsyncImagePainter(capturedImageUri)
                         else
                             painterResource(id = R.drawable.rentifylogo),
                         contentDescription = "Profile Image"
@@ -221,7 +262,7 @@ fun RegistrationScreen(navController: NavController) {
                                         android.Manifest.permission.CAMERA
                                     )
                                 if (permissionCheckResult == PackageManager.PERMISSION_GRANTED) {
-                                    cameraLauncher.launch(uri)
+                                    cameraLauncher.launch(uri!!)
                                 } else {
                                     cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
                                 }
@@ -290,7 +331,6 @@ fun RegistrationScreen(navController: NavController) {
                         }
                     },
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     placeholder = {
                         Text(text = "Enter Password")
                     },
@@ -333,16 +373,7 @@ fun RegistrationScreen(navController: NavController) {
                     trailingIcon = {
                         Icon(Icons.Filled.LocationOn, modifier = Modifier.clickable {
 
-                            val permissionCheckResult =
-                                ContextCompat.checkSelfPermission(
-                                    context,
-                                    android.Manifest.permission.ACCESS_FINE_LOCATION
-                                )
-                            if (permissionCheckResult == PackageManager.PERMISSION_GRANTED) {
-                                shouldShowMap = true
-                            } else {
-                                locationPermissionLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
-                            }
+                            shouldShowMap = true
 
                         }, contentDescription = "Choose")
                     },
@@ -367,7 +398,7 @@ fun RegistrationScreen(navController: NavController) {
                         } else if (userName.isEmpty()) {
                             Toast.makeText(context, "Enter Valid Username", Toast.LENGTH_SHORT)
                                 .show()
-                        } else if (profileImageUri.isNullOrEmpty()) {
+                        } else if (capturedImageUri == Uri.EMPTY) {
                             Toast.makeText(
                                 context,
                                 "Please Choose Valid profile Photo",
@@ -384,7 +415,7 @@ fun RegistrationScreen(navController: NavController) {
 
                                         firebaseStorage.reference
                                             .child(firebaseAuth.currentUser?.uid ?: "")
-                                            .putFile(Uri.parse(profileImageUri))
+                                            .putFile(capturedImageUri)
                                             .addOnCompleteListener { imageTask ->
                                                 if (imageTask.isSuccessful) {
                                                     firebaseStorage.reference.child(
@@ -473,5 +504,15 @@ fun RegistrationScreen(navController: NavController) {
             }
         }
     }
+}
 
+fun Context.createImageFile(): File {
+    val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
+    val imageFileName = "JPEG_" + timeStamp + "_"
+    val image = File.createTempFile(
+        imageFileName,
+        ".jpg",
+        externalCacheDir
+    )
+    return image
 }

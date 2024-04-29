@@ -17,7 +17,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.Slider
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -27,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -41,14 +44,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
+import com.google.android.gms.maps.model.LatLng
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
 import retrofit2.Call
 import retrofit2.Response
 import uk.ac.tees.mad.w9642833.R
 import uk.ac.tees.mad.w9642833.data.ApiClient
 import uk.ac.tees.mad.w9642833.data.HouseObject
 import uk.ac.tees.mad.w9642833.data.Houses
+import uk.ac.tees.mad.w9642833.data.Preferences
 import uk.ac.tees.mad.w9642833.data.Properties
 import uk.ac.tees.mad.w9642833.navutil.Screen
+import uk.ac.tees.mad.w9642833.navutil.UtilFunctions
+import uk.ac.tees.mad.w9642833.ui.features.profile.User
+import kotlin.math.roundToInt
 
 @Composable
 fun HomeScreen(navController: NavController) {
@@ -63,11 +74,34 @@ fun HomeScreen(navController: NavController) {
         mutableStateOf(false)
     }
 
+
+    val firebaseAuth by remember {
+        mutableStateOf(Firebase.auth)
+    }
+    val currentUser by remember {
+        mutableStateOf(firebaseAuth.currentUser)
+    }
+
+    val firebaseFireStore by remember {
+        mutableStateOf(Firebase.firestore)
+    }
+
+    var user by remember {
+        mutableStateOf<User?>(null)
+    }
+
+    var userLocation by remember {
+        mutableStateOf<LatLng>(LatLng(0.0, 0.0))
+    }
+
+    var sliderPosition by remember { mutableFloatStateOf(50f) }
+
+
     LaunchedEffect(Unit) {
 
         showLoader = true
         val call = ApiClient.apiService.getHouseList(
-            locationIdentifier = "REGION^61466",
+            locationIdentifier = "REGION^87490",
             channel = "RENT",
             currencyCode = "GBP"
         )
@@ -79,6 +113,22 @@ fun HomeScreen(navController: NavController) {
                 if (response.isSuccessful) {
                     houses = response.body()
                     HouseObject.house = houses
+
+
+                    currentUser?.uid?.let {
+                        firebaseFireStore.collection("users").document(it).get()
+                            .addOnCompleteListener { task ->
+                                if (task.isSuccessful && task.result.exists()) {
+                                    user = task.result.toObject(User::class.java)
+                                    userLocation =
+                                        LatLng(user?.latitude ?: 0.0, user?.longitude ?: 0.0)
+                                }
+                            }
+                    }
+
+
+
+
                     showLoader = false
                 } else {
                     Toast.makeText(context, "Error", Toast.LENGTH_SHORT).show()
@@ -109,8 +159,36 @@ fun HomeScreen(navController: NavController) {
 
 
         Column(modifier = Modifier.verticalScroll(state = rememberScrollState())) {
+
+
+            Column(modifier = Modifier.padding(horizontal = 24.dp)) {
+                Text(text = "Search Property in ")
+
+                Slider(
+                    value = sliderPosition,
+                    onValueChange = { sliderPosition = it.roundToInt().toFloat() },
+                    steps = 300,
+                    valueRange = 0f..300f
+                )
+                Text(text = sliderPosition.toString() + "KM")
+            }
+
+
+
+
             houses?.properties?.forEach { property ->
-                HomeCard(navController = navController, property)
+
+                if (UtilFunctions.distanceBetweenTwoLatLng(
+                        userLocation,
+                        LatLng(
+                            property.location?.latitude ?: 0.0,
+                            property.location?.longitude ?: 0.0
+                        )
+                    ) <= sliderPosition
+                ) {
+                    HomeCard(navController = navController, property)
+                }
+
 
             }
         }
@@ -122,6 +200,17 @@ fun HomeScreen(navController: NavController) {
 @Composable
 fun HomeCard(navController: NavController, property: Properties) {
 
+    val context = LocalContext.current
+
+
+    var isBookmarked by remember {
+        mutableStateOf(false)
+    }
+
+    LaunchedEffect(Unit) {
+        isBookmarked = Preferences.getPref(context)?.getStringSet("bookmarks", emptySet())
+            ?.contains(property.id) == true
+    }
 
     Card(
         modifier = Modifier
@@ -202,15 +291,40 @@ fun HomeCard(navController: NavController, property: Properties) {
                 }
             }
 
-            Row(
-                modifier = Modifier.padding(start = 12.dp, end = 24.dp, bottom = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row {
+                Row(
+                    modifier = Modifier
+                        .padding(start = 12.dp, end = 36.dp, bottom = 12.dp)
+                        .weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.LocationOn,
+                        contentDescription = "Address"
+                    )
+                    Text(text = property.displayAddress ?: "")
+                }
+
                 Icon(
-                    Icons.Default.LocationOn,
-                    contentDescription = "Address"
+                    modifier = Modifier.clickable {
+                        val existingSet =
+                            Preferences.getPref(context)?.getStringSet("bookmarks", emptySet())
+                                ?.toMutableSet() ?: mutableSetOf()
+                        val prefEditor = Preferences.getPref(context)?.edit()
+                        if (isBookmarked) {
+                            existingSet.remove(property.id)
+
+                        } else {
+                            existingSet.add(property.id)
+                        }
+                        prefEditor?.putStringSet("bookmarks", existingSet)?.commit()
+                        isBookmarked = !isBookmarked
+
+                    },
+                    tint = if (isBookmarked) Color.Yellow else Color.White,
+                    painter = painterResource(id = R.drawable.baseline_bookmark_add_24),
+                    contentDescription = "bookmark"
                 )
-                Text(text = property.displayAddress ?: "")
             }
 
 
